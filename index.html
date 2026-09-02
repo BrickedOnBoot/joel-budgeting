@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Joel's Budgeting Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F3EC;
+    --ink:#1E2A24;
+    --ledger:#2F5D46;
+    --ledger-dim:#7C9A8C;
+    --rule:#D8D2C2;
+    --amber:#B5762B;
+    --panel:#FFFFFF;
+    --danger:#A8462F;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:60px;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:0 16px;}
+  header{
+    padding:28px 16px 18px;
+    border-bottom:1px solid var(--rule);
+    position:sticky;top:0;background:var(--paper);z-index:10;
+  }
+  header .wrap{display:flex;justify-content:space-between;align-items:flex-end;}
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:28px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .tagline{font-size:12px;color:var(--ledger-dim);margin-top:2px;letter-spacing:.03em;text-transform:uppercase;}
+  .save-status{font-size:11px;color:var(--ledger-dim);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+  .save-status.saving{color:var(--amber);}
+  .save-status.saved{color:var(--ledger);}
+  .save-status.manual{color:var(--ledger-dim);}
+
+  .summary-bar{
+    display:grid;grid-template-columns:1fr 1fr;gap:1px;
+    background:var(--rule);
+    border:1px solid var(--rule);
+    margin:20px 0;
+  }
+  .summary-cell{background:var(--panel);padding:16px;}
+  .summary-cell .label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ledger-dim);margin-bottom:6px;}
+  .summary-cell .value{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--ledger);}
+  .summary-cell .value.neg{color:var(--danger);}
+
+  section{margin:28px 0;}
+  .section-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:6px;margin-bottom:14px;
+  }
+  .section-head h2{
+    font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:0;
+    text-transform:uppercase;letter-spacing:.04em;
+  }
+  .section-note{font-size:11px;color:var(--ledger-dim);margin:-8px 0 14px;line-height:1.5;}
+
+  .row{
+    display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:center;
+    padding:10px 0;border-bottom:1px solid var(--rule);
+  }
+  .row:last-child{border-bottom:none;}
+  .row label{font-size:14px;line-height:1.4;}
+  .row .sub{display:block;font-size:11px;color:var(--ledger-dim);margin-top:2px;}
+  input[type=number], input[type=text]{
+    width:100%;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:15px;
+    padding:8px 10px;
+    border:1px solid var(--rule);
+    background:#FCFBF8;
+    color:var(--ink);
+    border-radius:2px;
+    text-align:right;
+  }
+  input[type=number]:focus, input[type=text]:focus{outline:2px solid var(--ledger);outline-offset:1px;border-color:var(--ledger);}
+
+  .scenario-table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:13px;}
+  .scenario-table th{
+    text-align:right;font-family:'Inter',sans-serif;font-size:10px;text-transform:uppercase;
+    letter-spacing:.04em;color:var(--ledger-dim);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--ink);
+  }
+  .scenario-table th:first-child, .scenario-table td:first-child{text-align:left;}
+  .scenario-table td{padding:8px;text-align:right;border-bottom:1px solid var(--rule);}
+  .scenario-table tr.typical{background:#EEF3EF;font-weight:600;}
+
+  .bucket-list{display:flex;flex-direction:column;}
+  .bucket-row{
+    display:grid;grid-template-columns:1fr 40px 90px 90px 28px;gap:6px;align-items:center;
+    padding:10px 0;border-bottom:1px solid var(--rule);
+  }
+  .bucket-row input[type=text]{text-align:left;font-family:'Inter',sans-serif;font-size:13px;}
+  .mode-toggle{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;
+    background:#EEF3EF;border:1px solid var(--rule);color:var(--ledger);
+    border-radius:2px;height:34px;cursor:pointer;
+  }
+  .mode-toggle:hover{border-color:var(--ledger);}
+  .running{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ledger-dim);text-align:right;}
+  .remove-btn{
+    background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer;line-height:1;
+    width:28px;height:28px;
+  }
+  .add-bucket-btn{
+    margin-top:10px;padding:9px 14px;background:none;border:1px dashed var(--ledger-dim);
+    color:var(--ledger);font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
+    cursor:pointer;border-radius:2px;width:100%;
+  }
+  .add-bucket-btn:hover{border-color:var(--ledger);background:#EEF3EF;}
+
+  .bucket-block{border-bottom:1px solid var(--rule);padding-bottom:6px;margin-bottom:2px;}
+  .bucket-block:last-child{border-bottom:none;}
+  .bucket-row.has-subs{border-bottom:none;padding-bottom:4px;}
+  .bucket-computed{
+    font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;color:var(--ledger);
+    text-align:right;grid-column:2 / span 2;
+  }
+  .sub-list{padding-left:18px;border-left:2px solid var(--rule);margin:2px 0 6px 4px;}
+  .sub-row{
+    display:grid;grid-template-columns:1fr 34px 74px 68px 24px;gap:6px;align-items:center;
+    padding:6px 0;
+  }
+  .sub-row input[type=text]{
+    text-align:left;font-family:'Inter',sans-serif;font-size:12px;padding:6px 8px;
+  }
+  .sub-row input[type=number]{font-size:13px;padding:6px 8px;}
+  .sub-row .mode-toggle{height:30px;font-size:11px;}
+  .add-sub-btn{
+    background:none;border:none;color:var(--ledger-dim);font-family:'Inter',sans-serif;font-size:11px;
+    cursor:pointer;padding:4px 0 4px 4px;text-decoration:underline;text-underline-offset:2px;
+  }
+  .add-sub-btn:hover{color:var(--ledger);}
+
+  .yearly-row{
+    display:grid;grid-template-columns:1fr 100px 90px 28px;gap:8px;align-items:center;
+    padding:10px 0;border-bottom:1px solid var(--rule);
+  }
+  .yearly-row:last-child{border-bottom:none;}
+  .yearly-row input[type=text]{text-align:left;font-family:'Inter',sans-serif;font-size:13px;}
+  .yearly-equiv{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ledger-dim);text-align:right;}
+  .yearly-equiv .amt{color:var(--ledger);font-weight:600;}
+
+  .allocated-total{
+    display:flex;justify-content:space-between;padding-top:12px;margin-top:4px;
+    border-top:2px solid var(--ink);font-family:'IBM Plex Mono',monospace;font-weight:600;
+  }
+
+  .goal-card{
+    background:var(--panel);border:1px solid var(--rule);padding:14px;margin-bottom:12px;border-radius:2px;
+  }
+  .goal-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;}
+  .goal-card-head input[type=text]{
+    font-family:'Fraunces',serif;font-size:15px;font-weight:600;border:none;background:none;
+    padding:2px 0;flex:1;color:var(--ink);
+  }
+  .goal-card-head input[type=text]:focus{outline:none;border-bottom:1px solid var(--ledger);}
+  .goal-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;}
+  .goal-field label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--ledger-dim);margin-bottom:4px;}
+  .goal-progress-track{background:var(--rule);height:6px;border-radius:3px;overflow:hidden;margin-bottom:8px;}
+  .goal-progress-fill{background:var(--ledger);height:100%;border-radius:3px;transition:width .3s;}
+  .goal-stats{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ledger-dim);}
+  .goal-stats .pct{color:var(--ledger);font-weight:600;}
+  .overflow-line{
+    display:flex;justify-content:space-between;padding-top:8px;margin-top:4px;
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ledger-dim);
+  }
+  .overflow-line .value{color:var(--amber);font-weight:600;}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule);border:1px solid var(--rule);}
+  .stat-grid .summary-cell .value{font-size:18px;}
+
+  footer{
+    text-align:center;font-size:11px;color:var(--ledger-dim);padding:24px 16px 0;
+    font-family:'IBM Plex Mono',monospace;
+  }
+
+  @media (max-width:420px){
+    h1{font-size:23px;}
+    .row{grid-template-columns:1fr 100px;}
+    .bucket-row{grid-template-columns:1fr 34px 74px 68px 24px;gap:4px;}
+    .sub-row{grid-template-columns:1fr 30px 64px 58px 22px;gap:4px;}
+  }
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div>
+      <h1>Joel's Budgeting Sheet</h1>
+      <div class="tagline">Monthly income &amp; allocation</div>
+    </div>
+    <div class="save-status" id="saveStatus">loading…</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="summary-bar">
+    <div class="summary-cell">
+      <div class="label">Net income (typical)</div>
+      <div class="value" id="sumNet">$0</div>
+    </div>
+    <div class="summary-cell">
+      <div class="label">Left for checking</div>
+      <div class="value" id="sumChecking">$0</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-head"><h2>Income</h2></div>
+    <div class="row">
+      <label>Hourly wage<span class="sub">gross, for reference</span></label>
+      <input type="number" id="wage" step="0.25">
+    </div>
+    <div class="row">
+      <label>Hours / week — low</label>
+      <input type="number" id="hrsLow" step="1">
+    </div>
+    <div class="row">
+      <label>Hours / week — typical<span class="sub">min. guaranteed</span></label>
+      <input type="number" id="hrsTyp" step="1">
+    </div>
+    <div class="row">
+      <label>Hours / week — high</label>
+      <input type="number" id="hrsHigh" step="1">
+    </div>
+    <div class="row">
+      <label>Take-home pay<span class="sub">actual $/hour, from paycheck</span></label>
+      <input type="number" id="takehome" step="0.25">
+    </div>
+    <div class="row">
+      <label>VA income / month — low</label>
+      <input type="number" id="vaLow" step="10">
+    </div>
+    <div class="row">
+      <label>VA income / month — typical</label>
+      <input type="number" id="vaTyp" step="10">
+    </div>
+    <div class="row">
+      <label>VA income / month — high</label>
+      <input type="number" id="vaHigh" step="10">
+    </div>
+
+    <table class="scenario-table" style="margin-top:16px;">
+      <thead>
+        <tr><th>Scenario</th><th>Hrs/wk</th><th>Net + VA</th></tr>
+      </thead>
+      <tbody id="scenarioBody"></tbody>
+    </table>
+    <div class="section-note" style="margin-top:10px;">Gross monthly (typical, for % calcs like 401k match): <span id="grossRef" style="font-family:'IBM Plex Mono',monospace;color:var(--ledger);"></span></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Allocation</h2></div>
+    <div class="section-note">Pay-yourself-first order. Toggle any line between $ (flat amount) and % (of gross monthly pay) — useful for a 401k match, which is usually a percentage. Add new ones as your plan changes — every number recalculates live.</div>
+    <div class="bucket-list" id="bucketList"></div>
+    <button class="add-bucket-btn" id="addBucket">+ Add allocation line</button>
+    <div class="allocated-total">
+      <span>Total allocated</span>
+      <span id="totalAllocated">$0</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Expenses</h2></div>
+    <div class="section-note">Actual monthly bills — rent, food, insurance, subscriptions, gas. This total feeds both "left for checking" below and the emergency fund target in the HYSA section.</div>
+    <div class="bucket-list" id="expenseList"></div>
+    <button class="add-bucket-btn" id="addExpense">+ Add expense line</button>
+    <div class="allocated-total">
+      <span>Total expenses</span>
+      <span id="totalExpenses">$0</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Yearly Expenses</h2></div>
+    <div class="section-note">Bills you pay once a year — car insurance, registration, annual subscriptions. Enter the full annual cost; the tool divides it by 12 and folds that monthly slice into your regular expenses, so it doesn't blow up the month it's actually due.</div>
+    <div id="yearlyList"></div>
+    <button class="add-bucket-btn" id="addYearly">+ Add yearly expense</button>
+    <div class="allocated-total">
+      <span>Total (monthly equivalent)</span>
+      <span id="totalYearlyMonthly">$0</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Checking cushion</h2></div>
+    <div class="row">
+      <label>Comfort cap<span class="sub">stay around this in checking</span></label>
+      <input type="number" id="cushionCap" step="50">
+    </div>
+    <div class="overflow-line">
+      <span>Extra beyond cap → redirect to savings/Roth</span>
+      <span class="value" id="overflowVal">$0</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>HYSA emergency fund</h2></div>
+    <div class="row">
+      <label>Current HYSA balance</label>
+      <input type="number" id="hysaBalance" step="50">
+    </div>
+    <div class="row">
+      <label>Essential monthly expenses<span class="sub">from Expenses section above</span></label>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:var(--ledger);text-align:right;" id="essentialExpDisplay">$0</span>
+    </div>
+    <div class="row">
+      <label>Target months of coverage</label>
+      <input type="number" id="targetMonths" step="0.5">
+    </div>
+
+    <div class="stat-grid" style="margin-top:14px;">
+      <div class="summary-cell">
+        <div class="label">Months covered now</div>
+        <div class="value" id="monthsCovered">0.0</div>
+      </div>
+      <div class="summary-cell">
+        <div class="label">Target fund</div>
+        <div class="value" id="targetFund">$0</div>
+      </div>
+      <div class="summary-cell">
+        <div class="label">Gap to target</div>
+        <div class="value" id="fundGap">$0</div>
+      </div>
+      <div class="summary-cell">
+        <div class="label">Months to close gap</div>
+        <div class="value" id="monthsToClose">0.0</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Future Goals</h2></div>
+    <div class="section-note">Savings targets you're not actively funding yet — just tracking. Set a monthly contribution once you're ready to start building toward it; leave it at $0 to just watch progress.</div>
+    <div id="goalList"></div>
+    <button class="add-bucket-btn" id="addGoal">+ Add future goal</button>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Backup / Transfer</h2></div>
+    <div class="section-note">Your real data now lives in Firebase and syncs automatically — this is just a manual safety net. Copy the text below and paste it somewhere safe (Notes app, email to yourself) as a periodic backup. To restore from a backup, paste text into the box and tap Load.</div>
+    <textarea id="backupBox" rows="4" style="width:100%;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:10px;border:1px solid var(--rule);background:#FCFBF8;color:var(--ink);border-radius:2px;resize:vertical;"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button id="copyBackup" class="add-bucket-btn" style="width:auto;flex:1;">Copy current data</button>
+      <button id="loadBackup" class="add-bucket-btn" style="width:auto;flex:1;">Load pasted data</button>
+    </div>
+    <div id="backupStatus" style="font-size:11px;color:var(--ledger-dim);margin-top:8px;font-family:'IBM Plex Mono',monospace;"></div>
+  </section>
+
+  <footer>synced live via your private Firebase database — same data on phone &amp; computer, updates in real time</footer>
+</div>
+
+<script>
+const DEFAULTS = {"wage":21,"hrsLow":20,"hrsTyp":20,"hrsHigh":40,"takehome":17.85,"vaLow":1350,"vaTyp":1500,"vaHigh":1500,"cushionCap":1000,"hysaBalance":4022.06,"essentialExp":203,"targetMonths":6,"buckets":[{"name":"401k Roth (payroll deduction — tracked only)","amount":0,"isPercent":false,"subs":[{"name":"Employee Contribution","amount":15,"isPercent":true},{"name":"Employer Match","amount":0,"isPercent":true}],"excludeFromChecking":true},{"name":"Roth IRA - Monthly","amount":400,"isPercent":false,"subs":[]},{"name":"General Savings (HYSA) - Monthly","amount":300,"isPercent":false,"subs":[]},{"name":"Emergency Fund (Touch if below 6 months)","amount":0,"isPercent":false,"subs":[]},{"name":"Surplus Split (auto) - (Monthly Manual Transactions)","autoSource":"surplus_overflow","amount":0,"isPercent":false,"subs":[{"name":"Emergency Fund","amount":40,"isPercent":true},{"name":"General Savings","amount":30,"isPercent":true},{"name":"Roth IRA","amount":30,"isPercent":true}]}],"expenses":[{"name":"Gas","amount":100},{"name":"Food","amount":100},{"name":"Credit Card Subs.","amount":58}],"goals":[{"name":"Emergency fund baseline ($10k)","current":4022.06,"target":10000,"monthly":0,"linkedToHysaBalance":true}],"yearlyExpenses":[{"name":"Car insurance (yearly)","amount":1380}],"vaIncome":1400,"_migratedTakehome":true,"_migratedVA":true,"_migratedExpenses":true,"_migrated401k":true,"_migratedGoalLink":true};
+
+// ---- Firebase setup ----
+const firebaseConfig = {
+  apiKey: "AIzaSyDBVkWkDRdMxBhHLUqftT8ezGg5ynM-4Ik",
+  authDomain: "joel-budgeting.firebaseapp.com",
+  databaseURL: "https://joel-budgeting-default-rtdb.firebaseio.com",
+  projectId: "joel-budgeting",
+  storageBucket: "joel-budgeting.firebasestorage.app",
+  messagingSenderId: "472899325705",
+  appId: "1:472899325705:web:e59cc33bd142755e14cdd8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const budgetDocRef = db.collection("budgets").doc("main");
+
+let state = null;
+const LOCAL_CACHE_KEY = "joel-budget-cache-v1";
+let saveTimeout = null;
+let retryCount = 0;
+let surplusOverflowValue = 0;
+let unsubscribeSnapshot = null;
+let isApplyingRemoteUpdate = false;
+let hasLoadedOnce = false;
+
+function fmt(n){
+  const neg = n < 0;
+  n = Math.abs(Math.round(n));
+  const s = "$" + n.toLocaleString("en-US");
+  return neg ? "(" + s + ")" : s;
+}
+
+function setStatus(text, cls){
+  const el = document.getElementById("saveStatus");
+  el.textContent = text;
+  el.className = "save-status" + (cls ? " " + cls : "");
+}
+
+function normalizeState(raw){
+  let s = Object.assign({}, DEFAULTS, raw);
+  if(!s.buckets || !s.buckets.length) s.buckets = DEFAULTS.buckets;
+  s.buckets.forEach(b => { if(typeof b.isPercent === "undefined") b.isPercent = false; if(!Array.isArray(b.subs)) b.subs = []; });
+  if(!s.buckets.some(b => b.autoSource === "surplus_overflow")){
+    s.buckets.push(JSON.parse(JSON.stringify(DEFAULTS.buckets.find(b => b.autoSource === "surplus_overflow"))));
+  }
+  if(!s._migrated401k){
+    const k = s.buckets.find(b => /401k/i.test(b.name));
+    if(k && (!k.subs || !k.subs.length)){
+      const matchPct = k.isPercent ? (k.amount || 0) : 8;
+      k.excludeFromChecking = true;
+      k.amount = 0;
+      k.isPercent = false;
+      k.subs = [
+        {name: "Employee Contribution", amount: 15, isPercent: true},
+        {name: "Employer Match", amount: matchPct, isPercent: true}
+      ];
+    } else if(k && k.subs && k.subs.length){
+      k.excludeFromChecking = true;
+    }
+    s._migrated401k = true;
+  }
+  if(!s._migratedExpenses){
+    if(!s.expenses || !s.expenses.length){
+      const seed = (typeof s.essentialExp === "number" && s.essentialExp > 0) ? s.essentialExp : 500;
+      s.expenses = [{name: "Essential expenses (rent, food, insurance, etc.)", amount: seed}];
+    }
+    s._migratedExpenses = true;
+  }
+  if(!s.goals || !s.goals.length) s.goals = DEFAULTS.goals;
+  if(!s._migratedGoalLink){
+    const eg = s.goals.find(g => /emergency fund/i.test(g.name));
+    if(eg && typeof eg.linkedToHysaBalance === "undefined") eg.linkedToHysaBalance = true;
+    s._migratedGoalLink = true;
+  }
+  if(!s.yearlyExpenses || !s.yearlyExpenses.length) s.yearlyExpenses = DEFAULTS.yearlyExpenses;
+  if(!s._migratedTakehome && s.takehome > 0 && s.takehome <= 100 && s.wage){
+    s.takehome = Math.round((s.wage * (s.takehome / 100)) * 100) / 100;
+  }
+  s._migratedTakehome = true;
+  if(!s._migratedVA && typeof s.vaIncome === "number"){
+    s.vaLow = s.vaIncome; s.vaTyp = s.vaIncome; s.vaHigh = s.vaIncome;
+  }
+  s._migratedVA = true;
+  return s;
+}
+
+function cacheLocally(s){
+  try{ localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(s)); } catch(e){ /* ignore */ }
+}
+
+function readLocalCache(){
+  try{
+    const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
+
+async function loadState(){
+  // instant paint from local cache (if any) so the page isn't blank while Firestore connects
+  const cached = readLocalCache();
+  state = normalizeState(cached || DEFAULTS);
+  render();
+  setStatus("connecting…", "saving");
+
+  // real-time listener — any device's save shows up here within ~1 second, no reload needed
+  unsubscribeSnapshot = budgetDocRef.onSnapshot(
+    (doc) => {
+      if(doc.exists){
+        const remote = doc.data();
+        isApplyingRemoteUpdate = true;
+        state = normalizeState(remote);
+        cacheLocally(state);
+        render();
+        isApplyingRemoteUpdate = false;
+        setStatus("synced", "saved");
+      } else if(!hasLoadedOnce){
+        // no doc yet — push our starting data (either the real backup baked in, or local cache)
+        budgetDocRef.set(state).then(() => setStatus("synced", "saved")).catch(() => setStatus("initial sync failed", ""));
+      }
+      hasLoadedOnce = true;
+    },
+    (err) => {
+      setStatus("offline — using local copy: " + (err && err.message ? err.message.slice(0,40) : ""), "manual");
+    }
+  );
+}
+
+async function saveState(){
+  if(isApplyingRemoteUpdate) return; // don't echo back a write we just received
+  cacheLocally(state);
+  setStatus("saving…", "saving");
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    try{
+      await budgetDocRef.set(state);
+      retryCount = 0;
+      setStatus("synced", "saved");
+    } catch(e){
+      retryCount++;
+      const msg = (e && e.message) ? e.message : String(e);
+      setStatus(`save failed (${retryCount}): ${msg.slice(0,50)}`, "");
+      if(retryCount >= 5){
+        setStatus("cloud sync unavailable — saved locally only, copy backup below", "manual");
+        autoFillBackup();
+        return;
+      }
+      setTimeout(saveState, 2500);
+    }
+  }, 500);
+}
+
+function autoFillBackup(){
+  const box = document.getElementById("backupBox");
+  if(box) box.value = JSON.stringify(state, null, 0);
+}
+
+function bindInput(id, key, isInt){
+  const el = document.getElementById(id);
+  // don't clobber what the user is actively typing when a remote update arrives mid-keystroke
+  if(document.activeElement !== el){
+    el.value = state[key];
+  }
+  if(el._changeHandler){
+    el.removeEventListener("input", el._changeHandler);
+  }
+  el._changeHandler = () => {
+    const v = parseFloat(el.value);
+    state[key] = isNaN(v) ? 0 : v;
+    saveState();
+    recalc();
+  };
+  el.addEventListener("input", el._changeHandler);
+}
+
+function grossMonthly(){
+  return state.wage * state.hrsTyp * 4.33;
+}
+
+function computeScenario(hrs, va){
+  const wks = 4.33;
+  const net = state.takehome * hrs * wks;
+  return net + va;
+}
+
+function renderScenarios(){
+  const body = document.getElementById("scenarioBody");
+  body.innerHTML = "";
+  const rows = [
+    {label: "Low", hrs: state.hrsLow, va: state.vaLow},
+    {label: "Typical", hrs: state.hrsTyp, va: state.vaTyp},
+    {label: "High", hrs: state.hrsHigh, va: state.vaHigh}
+  ];
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    if(r.label === "Typical") tr.className = "typical";
+    tr.innerHTML = `<td>${r.label}</td><td>${r.hrs}</td><td>${fmt(computeScenario(r.hrs, r.va))}</td>`;
+    body.appendChild(tr);
+  });
+  document.getElementById("grossRef").textContent = fmt(grossMonthly());
+}
+
+function subDollarAmount(s){
+  return s.isPercent ? (grossMonthly() * (s.amount || 0) / 100) : (s.amount || 0);
+}
+
+// For a sub-line, percentages normally mean % of gross monthly pay.
+// But under the auto Surplus Split bucket, percentages mean % of the surplus itself.
+function subDollarForBucket(bucket, sub){
+  if(bucket.autoSource === "surplus_overflow"){
+    return sub.isPercent ? (surplusOverflowValue * (sub.amount || 0) / 100) : (sub.amount || 0);
+  }
+  return subDollarAmount(sub);
+}
+
+function bucketDollarAmount(b){
+  if(b.autoSource === "surplus_overflow"){
+    return surplusOverflowValue;
+  }
+  if(b.subs && b.subs.length > 0){
+    return b.subs.reduce((sum, s) => sum + subDollarForBucket(b, s), 0);
+  }
+  return b.isPercent ? (grossMonthly() * (b.amount || 0) / 100) : (b.amount || 0);
+}
+
+function renderBuckets(){
+  const list = document.getElementById("bucketList");
+  list.innerHTML = "";
+
+  state.buckets.forEach((b, i) => {
+    const isAuto = b.autoSource === "surplus_overflow";
+    const hasSubs = b.subs && b.subs.length > 0;
+    const forcedComputed = hasSubs || isAuto;
+    const dollarAmt = bucketDollarAmount(b);
+
+    const block = document.createElement("div");
+    block.className = "bucket-block";
+
+    const row = document.createElement("div");
+    row.className = "bucket-row" + (forcedComputed ? " has-subs" : "");
+    if(forcedComputed){
+      row.innerHTML = `
+        <input type="text" data-idx="${i}" data-field="name" value="${escapeHtml(b.name)}">
+        <span class="bucket-computed" id="bucket-computed-${i}">${fmt(dollarAmt)}</span>
+        <button class="remove-btn" data-idx="${i}" title="Remove entire line">×</button>
+      `;
+      row.style.gridTemplateColumns = "1fr 90px 28px";
+    } else {
+      row.innerHTML = `
+        <input type="text" data-idx="${i}" data-field="name" value="${escapeHtml(b.name)}">
+        <button class="mode-toggle" data-idx="${i}" title="Toggle $ / %">${b.isPercent ? "%" : "$"}</button>
+        <input type="number" step="${b.isPercent ? '0.5' : '10'}" data-idx="${i}" data-field="amount" value="${b.amount}">
+        <span class="running" id="bucket-amt-${i}" title="Dollar amount this month">${fmt(dollarAmt)}</span>
+        <button class="remove-btn" data-idx="${i}" title="Remove">×</button>
+      `;
+    }
+    block.appendChild(row);
+
+    if(isAuto){
+      const note = document.createElement("div");
+      note.style.cssText = "font-size:10px;color:var(--ledger-dim);margin:2px 0 6px;font-style:italic;";
+      note.textContent = "auto-syncs to whatever's left over beyond your checking cushion — sub-line %'s split this total, not your gross pay";
+      block.appendChild(note);
+    }
+    if(b.excludeFromChecking && !isAuto){
+      const note2 = document.createElement("div");
+      note2.style.cssText = "font-size:10px;color:var(--ledger-dim);margin:2px 0 6px;font-style:italic;";
+      note2.textContent = "tracked for reference only — excluded from checking math since it's a payroll deduction that never touches your checking account";
+      block.appendChild(note2);
+    }
+
+    // sub-lines
+    if(hasSubs){
+      const subList = document.createElement("div");
+      subList.className = "sub-list";
+      b.subs.forEach((s, si) => {
+        const subDollar = subDollarForBucket(b, s);
+        const subRow = document.createElement("div");
+        subRow.className = "sub-row";
+        subRow.innerHTML = `
+          <input type="text" data-idx="${i}" data-sub="${si}" data-field="name" value="${escapeHtml(s.name)}">
+          <button class="mode-toggle" data-idx="${i}" data-sub="${si}" title="Toggle $ / %">${s.isPercent ? "%" : "$"}</button>
+          <input type="number" step="${s.isPercent ? '0.5' : '10'}" data-idx="${i}" data-sub="${si}" data-field="amount" value="${s.amount}">
+          <span class="running" id="sub-amt-${i}-${si}" title="Dollar amount this month">${fmt(subDollar)}</span>
+          <button class="remove-btn" data-idx="${i}" data-sub="${si}" title="Remove sub-line">×</button>
+        `;
+        subList.appendChild(subRow);
+      });
+      block.appendChild(subList);
+    }
+
+    const addSub = document.createElement("button");
+    addSub.className = "add-sub-btn";
+    addSub.textContent = hasSubs ? "+ add another sub-line" : "+ split into sub-lines";
+    addSub.dataset.idx = i;
+    block.appendChild(addSub);
+
+    list.appendChild(block);
+  });
+
+  // top-level name/amount/toggle/remove handlers (only apply to non-sub rows since subs use data-sub)
+  list.querySelectorAll('input[data-field="name"]:not([data-sub])').forEach(inp => {
+    inp.addEventListener("input", e => {
+      const idx = parseInt(e.target.dataset.idx);
+      state.buckets[idx].name = e.target.value;
+      saveState();
+    });
+  });
+  list.querySelectorAll('input[data-field="amount"]:not([data-sub])').forEach(inp => {
+    inp.addEventListener("input", e => {
+      const idx = parseInt(e.target.dataset.idx);
+      const v = parseFloat(e.target.value);
+      state.buckets[idx].amount = isNaN(v) ? 0 : v;
+      saveState();
+      recalc();
+    });
+  });
+  list.querySelectorAll('.mode-toggle:not([data-sub])').forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = parseInt(e.target.dataset.idx);
+      state.buckets[idx].isPercent = !state.buckets[idx].isPercent;
+      saveState();
+      renderBuckets();
+      recalc();
+    });
+  });
+  list.querySelectorAll('.remove-btn:not([data-sub])').forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = parseInt(e.target.dataset.idx);
+      state.buckets.splice(idx, 1);
+      saveState();
+      renderBuckets();
+      recalc();
+    });
+  });
+
+  // sub-line handlers
+  list.querySelectorAll('input[data-field="name"][data-sub]').forEach(inp => {
+    inp.addEventListener("input", e => {
+      const idx = parseInt(e.target.dataset.idx), si = parseInt(e.target.dataset.sub);
+      state.buckets[idx].subs[si].name = e.target.value;
+      saveState();
+    });
+  });
+  list.querySelectorAll('input[data-field="amount"][data-sub]').forEach(inp => {
+    inp.addEventListener("input", e => {
+      const idx = parseInt(e.target.dataset.idx), si = parseInt(e.target.dataset.sub);
+      const v = parseFloat(e.target.value);
+      state.buckets[idx].subs[si].amount = isNaN(v) ? 0 : v;
+      saveState();
+      recalc();
+    });
+  });
+  list.querySelectorAll('.mode-toggle[data-sub]').forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = parseInt(e.target.dataset.idx), si = parseInt(e.target.dataset.sub);
+      state.buckets[idx].subs[si].isPercent = !state.buckets[idx].subs[si].isPercent;
+      saveState();
+      renderBuckets();
+      recalc();
+    });
+  });
+  list.querySelectorAll('.remove-btn[data-sub]').forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = parseInt(e.target.dataset.idx), si = parseInt(e.target.dataset.sub);
+      state.buckets[idx].subs.splice(si, 1);
+      saveState();
+      renderBuckets();
+      recalc();
+    });
+  });
+
+  // add sub-line buttons
+  list.querySelectorAll(".add-sub-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = parseInt(e.target.dataset.idx);
+      if(!state.buckets[idx].subs) state.buckets[idx].subs = [];
+      state.buckets[idx].subs.push({name: "Sub-line", amount: 0, isPercent: state.buckets[idx].isPercent});
+      saveState();
+      renderBuckets();
+      recalc();
+    });
+  });
+}
+
+function renderExpenses(){
+  const list = document.getElementById("expenseList");
+  list.innerHTML = "";
+  state.expenses.forEach((e, i) => {
+    const row = document.createElement("div");
+    row.className = "bucket-row";
+    row.style.gridTemplateColumns = "1fr 100px 90px 28px";
+    row.innerHTML = `
+      <input type="text" data-idx="${i}" data-field="name" value="${escapeHtml(e.name)}">
+      <input type="number" step="10" data-idx="${i}" data-field="amount" value="${e.amount}">
+      <span class="running" title="Dollar amount this month">${fmt(e.amount || 0)}</span>
+      <button class="remove-btn" data-idx="${i}" title="Remove">×</button>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('input[data-field="name"]').forEach(inp => {
+    inp.addEventListener("input", ev => {
+      const idx = parseInt(ev.target.dataset.idx);
+      state.expenses[idx].name = ev.target.value;
+      saveState();
+    });
+  });
+  list.querySelectorAll('input[data-field="amount"]').forEach(inp => {
+    inp.addEventListener("input", ev => {
+      const idx = parseInt(ev.target.dataset.idx);
+      const v = parseFloat(ev.target.value);
+      state.expenses[idx].amount = isNaN(v) ? 0 : v;
+      saveState();
+      recalc();
+    });
+  });
+  list.querySelectorAll(".remove-btn").forEach(btn => {
+    btn.addEventListener("click", ev => {
+      const idx = parseInt(ev.target.dataset.idx);
+      state.expenses.splice(idx, 1);
+      saveState();
+      renderExpenses();
+      recalc();
+    });
+  });
+}
+
+function renderYearlyExpenses(){
+  const list = document.getElementById("yearlyList");
+  list.innerHTML = "";
+  state.yearlyExpenses.forEach((y, i) => {
+    const monthlyEquiv = (y.amount || 0) / 12;
+    const row = document.createElement("div");
+    row.className = "yearly-row";
+    row.innerHTML = `
+      <input type="text" data-idx="${i}" data-field="name" value="${escapeHtml(y.name)}">
+      <input type="number" step="25" data-idx="${i}" data-field="amount" value="${y.amount}">
+      <span class="yearly-equiv" id="yearly-equiv-${i}">/12 = <span class="amt">${fmt(monthlyEquiv)}</span></span>
+      <button class="remove-btn" data-idx="${i}" title="Remove">×</button>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('input[data-field="name"]').forEach(inp => {
+    inp.addEventListener("input", ev => {
+      const idx = parseInt(ev.target.dataset.idx);
+      state.yearlyExpenses[idx].name = ev.target.value;
+      saveState();
+    });
+  });
+  list.querySelectorAll('input[data-field="amount"]').forEach(inp => {
+    inp.addEventListener("input", ev => {
+      const idx = parseInt(ev.target.dataset.idx);
+      const v = parseFloat(ev.target.value);
+      state.yearlyExpenses[idx].amount = isNaN(v) ? 0 : v;
+      saveState();
+      recalc();
+    });
+  });
+  list.querySelectorAll(".remove-btn").forEach(btn => {
+    btn.addEventListener("click", ev => {
+      const idx = parseInt(ev.target.dataset.idx);
+      state.yearlyExpenses.splice(idx, 1);
+      saveState();
+      renderYearlyExpenses();
+      recalc();
+    });
+  });
+}
+
+function renderGoals(){
+  const list = document.getElementById("goalList");
+  list.innerHTML = "";
+  state.goals.forEach((g, i) => {
+    if(g.linkedToHysaBalance){
+      g.current = state.hysaBalance;
+    }
+    const remaining = Math.max((g.target || 0) - (g.current || 0), 0);
+    const pct = g.target > 0 ? Math.min(((g.current || 0) / g.target) * 100, 100) : 0;
+    const monthsLeft = (g.monthly || 0) > 0 ? (remaining / g.monthly) : null;
+
+    const currentFieldHtml = g.linkedToHysaBalance
+      ? `<span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:var(--ledger);padding:8px 0;">${fmt(g.current)}</span>`
+      : `<input type="number" step="50" data-idx="${i}" data-field="current" value="${g.current}">`;
+
+    const card = document.createElement("div");
+    card.className = "goal-card";
+    card.innerHTML = `
+      <div class="goal-card-head">
+        <input type="text" data-idx="${i}" data-field="name" value="${escapeHtml(g.name)}">
+        <button class="remove-btn" data-idx="${i}" title="Remove">×</button>
+      </div>
+      <div class="goal-fields">
+        <div class="goal-field">
+          <label>Current${g.linkedToHysaBalance ? " (from HYSA)" : ""}</label>
+          ${currentFieldHtml}
+        </div>
+        <div class="goal-field">
+          <label>Target</label>
+          <input type="number" step="50" data-idx="${i}" data-field="target" value="${g.target}">
+        </div>
+        <div class="goal-field">
+          <label>Monthly (optional)</label>
+          <input type="number" step="10" data-idx="${i}" data-field="monthly" value="${g.monthly}">
+        </div>
+      </div>
+      <div class="goal-progress-track"><div class="goal-progress-fill" style="width:${pct}%;"></div></div>
+      <div class="goal-stats">
+        <span><span class="pct">${pct.toFixed(0)}%</span> of goal &middot; ${fmt(remaining)} to go</span>
+        <span>${monthsLeft !== null ? monthsLeft.toFixed(1) + " mo at current rate" : "not yet funded"}</span>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  list.querySelectorAll('input[data-field="name"]').forEach(inp => {
+    inp.addEventListener("input", e => {
+      const idx = parseInt(e.target.dataset.idx);
+      state.goals[idx].name = e.target.value;
+      saveState();
+    });
+  });
+  ["current","target","monthly"].forEach(field => {
+    list.querySelectorAll(`input[data-field="${field}"]`).forEach(inp => {
+      inp.addEventListener("input", e => {
+        const idx = parseInt(e.target.dataset.idx);
+        const v = parseFloat(e.target.value);
+        state.goals[idx][field] = isNaN(v) ? 0 : v;
+        saveState();
+        renderGoals();
+      });
+    });
+  });
+  list.querySelectorAll(".remove-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = parseInt(e.target.dataset.idx);
+      state.goals.splice(idx, 1);
+      saveState();
+      renderGoals();
+    });
+  });
+}
+
+function escapeHtml(str){
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function recalc(){
+  renderScenarios();
+  renderExpenses();
+  renderYearlyExpenses();
+  renderGoals();
+
+  const netTypical = computeScenario(state.hrsTyp, state.vaTyp);
+  const totalMonthlyExpenses = state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalYearlyMonthly = state.yearlyExpenses.reduce((sum, y) => sum + ((y.amount || 0) / 12), 0);
+  const totalExpenses = totalMonthlyExpenses + totalYearlyMonthly;
+
+  // Step 1: sum every bucket EXCEPT the auto-surplus one and anything payroll-excluded, using their own math.
+  const nonAutoTotal = state.buckets
+    .filter(b => b.autoSource !== "surplus_overflow" && !b.excludeFromChecking)
+    .reduce((sum, b) => sum + bucketDollarAmount(b), 0);
+
+  // Step 2: whatever's left beyond the cushion, before the surplus bucket claims it.
+  const remainingBeforeSplit = netTypical - nonAutoTotal - totalExpenses;
+  surplusOverflowValue = Math.max(remainingBeforeSplit - state.cushionCap, 0);
+
+  // Step 3: total allocated = everything that actually leaves checking (excludes payroll deductions like 401k).
+  const totalAllocated = state.buckets
+    .filter(b => !b.excludeFromChecking)
+    .reduce((sum, b) => sum + bucketDollarAmount(b), 0);
+  const remainingChecking = netTypical - totalAllocated - totalExpenses;
+
+  document.getElementById("sumNet").textContent = fmt(netTypical);
+  const checkEl = document.getElementById("sumChecking");
+  checkEl.textContent = fmt(remainingChecking);
+  checkEl.className = "value" + (remainingChecking < 0 ? " neg" : "");
+
+  document.getElementById("totalAllocated").textContent = fmt(totalAllocated);
+  document.getElementById("totalExpenses").textContent = fmt(totalMonthlyExpenses);
+  document.getElementById("totalYearlyMonthly").textContent = fmt(totalYearlyMonthly);
+  document.getElementById("overflowVal").textContent = fmt(surplusOverflowValue);
+
+  // Update each bucket's displayed dollar amount directly (no full re-render, so typing elsewhere isn't disrupted)
+  state.buckets.forEach((b, i) => {
+    const isAuto = b.autoSource === "surplus_overflow";
+    const hasSubs = b.subs && b.subs.length > 0;
+    const dollarAmt = bucketDollarAmount(b);
+    if(hasSubs || isAuto){
+      const el = document.getElementById(`bucket-computed-${i}`);
+      if(el) el.textContent = fmt(dollarAmt);
+      if(hasSubs){
+        b.subs.forEach((s, si) => {
+          const subEl = document.getElementById(`sub-amt-${i}-${si}`);
+          if(subEl) subEl.textContent = fmt(subDollarForBucket(b, s));
+        });
+      }
+    } else {
+      const el = document.getElementById(`bucket-amt-${i}`);
+      if(el) el.textContent = fmt(dollarAmt);
+    }
+  });
+
+  // HYSA — essential expenses now includes averaged-out yearly bills
+  const essentialExp = totalExpenses;
+  document.getElementById("essentialExpDisplay").textContent = fmt(essentialExp);
+  const monthsCovered = essentialExp > 0 ? (state.hysaBalance / essentialExp) : 0;
+  const targetFund = essentialExp * state.targetMonths;
+  const gap = Math.max(targetFund - state.hysaBalance, 0);
+  const hysaBucket = state.buckets.find(b => b.autoSource !== "surplus_overflow" && /hysa/i.test(b.name));
+  const monthlyHysa = hysaBucket ? bucketDollarAmount(hysaBucket) : 0;
+  const monthsToClose = monthlyHysa > 0 ? (gap / monthlyHysa) : 0;
+
+  document.getElementById("monthsCovered").textContent = monthsCovered.toFixed(1);
+  document.getElementById("targetFund").textContent = fmt(targetFund);
+  document.getElementById("fundGap").textContent = fmt(gap);
+  document.getElementById("monthsToClose").textContent = monthlyHysa > 0 ? monthsToClose.toFixed(1) : "—";
+}
+
+function render(){
+  bindInput("wage", "wage");
+  bindInput("hrsLow", "hrsLow");
+  bindInput("hrsTyp", "hrsTyp");
+  bindInput("hrsHigh", "hrsHigh");
+  bindInput("takehome", "takehome");
+  bindInput("vaLow", "vaLow");
+  bindInput("vaTyp", "vaTyp");
+  bindInput("vaHigh", "vaHigh");
+  bindInput("cushionCap", "cushionCap");
+  bindInput("hysaBalance", "hysaBalance");
+  bindInput("targetMonths", "targetMonths");
+
+  renderBuckets();
+  renderExpenses();
+  renderYearlyExpenses();
+  renderGoals();
+  recalc();
+}
+
+// One-time setup — these buttons must only be bound ONCE, since render() now runs
+// repeatedly as real-time updates arrive, and re-binding would stack duplicate clicks.
+function bindStaticControls(){
+  document.getElementById("addBucket").addEventListener("click", () => {
+    state.buckets.push({name: "New line", amount: 0, isPercent: false, subs: []});
+    saveState();
+    renderBuckets();
+    recalc();
+  });
+
+  document.getElementById("addExpense").addEventListener("click", () => {
+    state.expenses.push({name: "New expense", amount: 0});
+    saveState();
+    renderExpenses();
+    recalc();
+  });
+
+  document.getElementById("addYearly").addEventListener("click", () => {
+    state.yearlyExpenses.push({name: "New yearly expense", amount: 0});
+    saveState();
+    renderYearlyExpenses();
+    recalc();
+  });
+
+  document.getElementById("addGoal").addEventListener("click", () => {
+    state.goals.push({name: "New goal", current: 0, target: 1000, monthly: 0});
+    saveState();
+    renderGoals();
+  });
+
+  // Backup / transfer controls
+  const backupBox = document.getElementById("backupBox");
+  const backupStatus = document.getElementById("backupStatus");
+
+  document.getElementById("copyBackup").addEventListener("click", async () => {
+    const text = JSON.stringify(state, null, 0);
+    backupBox.value = text;
+    try{
+      await navigator.clipboard.writeText(text);
+      backupStatus.textContent = "copied to clipboard — paste it into Notes or an email to yourself";
+      backupStatus.style.color = "var(--ledger)";
+    } catch(e){
+      backupStatus.textContent = "couldn't auto-copy — select the text above and copy it manually";
+      backupStatus.style.color = "var(--amber)";
+    }
+  });
+
+  document.getElementById("loadBackup").addEventListener("click", () => {
+    const text = backupBox.value.trim();
+    if(!text){
+      backupStatus.textContent = "paste your saved data into the box first";
+      backupStatus.style.color = "var(--amber)";
+      return;
+    }
+    try{
+      const parsed = JSON.parse(text);
+      state = normalizeState(parsed);
+      render();
+      saveState();
+      backupStatus.textContent = "loaded successfully";
+      backupStatus.style.color = "var(--ledger)";
+    } catch(e){
+      backupStatus.textContent = "that doesn't look like valid saved data — check you copied the whole thing";
+      backupStatus.style.color = "var(--danger)";
+    }
+  });
+}
+
+bindStaticControls();
+loadState();
+</script>
+
+</body>
+</html>
