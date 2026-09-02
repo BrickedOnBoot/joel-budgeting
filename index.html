@@ -196,9 +196,19 @@
   }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+
+<div id="authGate" style="display:none;position:fixed;inset:0;background:var(--paper);z-index:100;align-items:center;justify-content:center;flex-direction:column;padding:24px;text-align:center;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:26px;margin:0 0 8px;">Joel's Budgeting Sheet</h1>
+  <p style="color:var(--ledger-dim);font-size:14px;margin:0 0 24px;max-width:320px;">Sign in with your Google account to access your private budget.</p>
+  <button id="signInBtn" style="font-family:'Inter',sans-serif;font-size:15px;font-weight:600;background:var(--ledger);color:#fff;border:none;padding:12px 24px;border-radius:4px;cursor:pointer;">Sign in with Google</button>
+  <div id="authError" style="color:var(--danger);font-size:12px;margin-top:16px;font-family:'IBM Plex Mono',monospace;max-width:340px;"></div>
+</div>
+
+<div id="appRoot" style="display:none;">
 
 <header>
   <div class="wrap">
@@ -206,7 +216,10 @@
       <h1>Joel's Budgeting Sheet</h1>
       <div class="tagline">Monthly income &amp; allocation</div>
     </div>
-    <div class="save-status" id="saveStatus">loading…</div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="save-status" id="saveStatus">loading…</div>
+      <button id="signOutBtn" style="font-family:'Inter',sans-serif;font-size:11px;background:none;border:1px solid var(--rule);color:var(--ledger-dim);padding:4px 10px;border-radius:3px;cursor:pointer;">Sign out</button>
+    </div>
   </div>
 </header>
 
@@ -367,6 +380,7 @@
 
   <footer>synced live via your private Firebase database — same data on phone &amp; computer, updates in real time</footer>
 </div>
+</div><!-- /appRoot -->
 
 <script>
 const DEFAULTS = {"wage":21,"hrsLow":20,"hrsTyp":20,"hrsHigh":40,"takehome":17.85,"vaLow":1350,"vaTyp":1500,"vaHigh":1500,"cushionCap":1000,"hysaBalance":4022.06,"essentialExp":203,"targetMonths":6,"buckets":[{"name":"401k Roth (payroll deduction — tracked only)","amount":0,"isPercent":false,"subs":[{"name":"Employee Contribution","amount":15,"isPercent":true},{"name":"Employer Match","amount":0,"isPercent":true}],"excludeFromChecking":true},{"name":"Roth IRA - Monthly","amount":400,"isPercent":false,"subs":[]},{"name":"General Savings (HYSA) - Monthly","amount":300,"isPercent":false,"subs":[]},{"name":"Emergency Fund (Touch if below 6 months)","amount":0,"isPercent":false,"subs":[]},{"name":"Surplus Split (auto) - (Monthly Manual Transactions)","autoSource":"surplus_overflow","amount":0,"isPercent":false,"subs":[{"name":"Emergency Fund","amount":40,"isPercent":true},{"name":"General Savings","amount":30,"isPercent":true},{"name":"Roth IRA","amount":30,"isPercent":true}]}],"expenses":[{"name":"Gas","amount":100},{"name":"Food","amount":100},{"name":"Credit Card Subs.","amount":58}],"goals":[{"name":"Emergency fund baseline ($10k)","current":4022.06,"target":10000,"monthly":0,"linkedToHysaBalance":true}],"yearlyExpenses":[{"name":"Car insurance (yearly)","amount":1380}],"vaIncome":1400,"_migratedTakehome":true,"_migratedVA":true,"_migratedExpenses":true,"_migrated401k":true,"_migratedGoalLink":true};
@@ -383,7 +397,10 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
 const budgetDocRef = db.collection("budgets").doc("main");
+let currentUser = null;
+let appStarted = false;
 
 let state = null;
 const LOCAL_CACHE_KEY = "joel-budget-cache-v1";
@@ -1078,8 +1095,38 @@ function bindStaticControls(){
   });
 }
 
-bindStaticControls();
-loadState();
+// ---- Auth gating ----
+const authGate = document.getElementById("authGate");
+const appRoot = document.getElementById("appRoot");
+const authError = document.getElementById("authError");
+
+document.getElementById("signInBtn").addEventListener("click", () => {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch((err) => {
+    authError.textContent = "Sign-in failed: " + (err && err.message ? err.message : String(err));
+  });
+});
+
+document.getElementById("signOutBtn").addEventListener("click", () => {
+  auth.signOut();
+});
+
+auth.onAuthStateChanged((user) => {
+  if(user){
+    currentUser = user;
+    authGate.style.display = "none";
+    appRoot.style.display = "block";
+    if(!appStarted){
+      appStarted = true;
+      bindStaticControls();
+      loadState();
+    }
+  } else {
+    currentUser = null;
+    appRoot.style.display = "none";
+    authGate.style.display = "flex";
+  }
+});
 </script>
 
 </body>
