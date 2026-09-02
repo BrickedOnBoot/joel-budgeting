@@ -508,9 +508,34 @@ async function loadState(){
       hasLoadedOnce = true;
     },
     (err) => {
-      setStatus("offline — using local copy: " + (err && err.message ? err.message.slice(0,40) : ""), "manual");
+      const msg = (err && err.message) ? err.message : String(err);
+      const isPermission = (err && err.code === "permission-denied") || /insufficient permissions|permission-denied/i.test(msg);
+      if(isPermission){
+        // A signed-in but NON-authorized account. Never show cached/default data to them.
+        try{ localStorage.removeItem(LOCAL_CACHE_KEY); }catch(e){}
+        if(unsubscribeSnapshot){ try{ unsubscribeSnapshot(); }catch(e){} }
+        showAccessDenied();
+      } else {
+        // genuine offline / network issue for an authorized user — local copy is fine
+        setStatus("offline — using local copy", "manual");
+      }
     }
   );
+}
+
+function showAccessDenied(){
+  const rootEl = document.getElementById("appRoot");
+  const gateEl = document.getElementById("authGate");
+  if(rootEl) rootEl.style.display = "none";
+  if(gateEl){
+    gateEl.style.display = "flex";
+    const p = gateEl.querySelector("p");
+    if(p) p.textContent = "This account doesn't have access to this budget. Sign out and use the authorized account.";
+    const err = document.getElementById("authError");
+    if(err) err.textContent = "Access denied for this Google account.";
+    const btn = document.getElementById("signInBtn");
+    if(btn) btn.textContent = "Sign in with a different account";
+  }
 }
 
 async function saveState(){
@@ -1100,11 +1125,17 @@ const authGate = document.getElementById("authGate");
 const appRoot = document.getElementById("appRoot");
 const authError = document.getElementById("authError");
 
-document.getElementById("signInBtn").addEventListener("click", () => {
+document.getElementById("signInBtn").addEventListener("click", async () => {
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).catch((err) => {
+  // always show the account chooser, so a denied user can pick a different account
+  provider.setCustomParameters({ prompt: "select_account" });
+  try{
+    // if a (denied) user is currently signed in, clear them first
+    if(auth.currentUser){ await auth.signOut(); }
+    await auth.signInWithPopup(provider);
+  }catch(err){
     authError.textContent = "Sign-in failed: " + (err && err.message ? err.message : String(err));
-  });
+  }
 });
 
 document.getElementById("signOutBtn").addEventListener("click", () => {
@@ -1116,15 +1147,26 @@ auth.onAuthStateChanged((user) => {
     currentUser = user;
     authGate.style.display = "none";
     appRoot.style.display = "block";
+    // (re)bind static controls once
     if(!appStarted){
       appStarted = true;
       bindStaticControls();
-      loadState();
     }
+    // (re)start the data listener for this user — tears down any prior listener first
+    if(unsubscribeSnapshot){ try{ unsubscribeSnapshot(); }catch(e){} unsubscribeSnapshot = null; }
+    hasLoadedOnce = false;
+    loadState();
   } else {
     currentUser = null;
     appRoot.style.display = "none";
     authGate.style.display = "flex";
+    // reset gate to its default prompt in case it was showing an access-denied message
+    const p = authGate.querySelector("p");
+    if(p) p.textContent = "Sign in with your Google account to access your private budget.";
+    const err = document.getElementById("authError");
+    if(err) err.textContent = "";
+    const btn = document.getElementById("signInBtn");
+    if(btn) btn.textContent = "Sign in with Google";
   }
 });
 </script>
