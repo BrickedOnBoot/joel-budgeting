@@ -1125,16 +1125,31 @@ const authGate = document.getElementById("authGate");
 const appRoot = document.getElementById("appRoot");
 const authError = document.getElementById("authError");
 
+function isMobileBrowser(){
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
 document.getElementById("signInBtn").addEventListener("click", async () => {
   const provider = new firebase.auth.GoogleAuthProvider();
-  // always show the account chooser, so a denied user can pick a different account
   provider.setCustomParameters({ prompt: "select_account" });
   try{
-    // if a (denied) user is currently signed in, clear them first
     if(auth.currentUser){ await auth.signOut(); }
-    await auth.signInWithPopup(provider);
+    if(isMobileBrowser()){
+      // popup sign-in breaks in mobile / privacy browsers (Brave storage partitioning);
+      // redirect is the reliable path on phones
+      await auth.signInWithRedirect(provider);
+    } else {
+      await auth.signInWithPopup(provider);
+    }
   }catch(err){
     authError.textContent = "Sign-in failed: " + (err && err.message ? err.message : String(err));
+  }
+});
+
+// complete a redirect-based sign-in when the page loads back from Google
+auth.getRedirectResult().catch((err) => {
+  if(err && err.message){
+    authError.textContent = "Sign-in failed: " + err.message;
   }
 });
 
